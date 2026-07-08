@@ -29,9 +29,9 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
         String oktaWebClientSecret = AwsServicesDelegate.fetchSmmParameterValue(oktaWebClientSecretSsmParameterKey);
         this.oktaDelegate = new OktaDelegate(oktaIssuer, oktaAudience, oktaWebClientId, oktaWebClientSecret, oktaScopes);
 
-        String jiraEmail = System.getenv("JIRA_EMAIL");
+        String jiraEmail = System.getenv("JIRA_CLIENT_EMAIL");
         String jiraCloudId = System.getenv("JIRA_CLOUD_ID");
-        String jiraToken = AwsServicesDelegate.fetchSmmParameterValue(System.getenv("JIRA_TOKEN_SSM_PARAMETER_KEY"));
+        String jiraToken = AwsServicesDelegate.fetchSmmParameterValue(System.getenv("JIRA_CLIENT_TOKEN_SSM_PARAMETER_KEY"));
         this.mcpHandler = new McpHandler(new JiraDelegate(jiraEmail, jiraToken, jiraCloudId));
     }
 

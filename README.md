@@ -16,16 +16,18 @@ HTTP handler (`mcp/McpHandler`) delegating to a Jira REST client (`jira/JiraDele
 Set these in the git-ignored `local/config.sh` (sourced by the deploy scripts):
 
 ```sh
-# Okta (see okta admin notes below)
-export TF_VAR_okta_issuer="https://<org>.okta.com/oauth2/default"
-export TF_VAR_okta_web_client_id="..."      # optional: enables the browser OIDC flow
-export TF_VAR_okta_scopes="..."             # optional
+export AWS_ACCOUNT_ID="..."                 # tfstate backend bucket: tfstate-<AWS_ACCOUNT_ID>
+
+# Okta — deploy.sh derives the TF_VAR_* inputs from these raw values
+export OKTA_URL_PREFIX="<org>"              # -> issuer https://<org>.okta.com/oauth2/default
+export OKTA_WEB_CLIENT_ID="..."             # optional: enables the browser OIDC flow
+export OKTA_SCOPES="..."                    # optional
 export OKTA_WEB_CLIENT_SECRET="..."         # pushed to SSM by deploy_secrets.sh
 
-# Jira (values from the claude-skills/jira local config)
-export TF_VAR_jira_email="you@example.com"
-export TF_VAR_jira_cloud_id="<cloud-uuid>"  # discover via jira skill's get-cloud-id.sh
-export JIRA_TOKEN="<atlassian-api-token>"   # pushed to SSM by deploy_secrets.sh
+# Jira — email/token come from the claude-skills/jira local config (JIRA_EMAIL / JIRA_TOKEN there)
+export JIRA_CLIENT_EMAIL="you@example.com"  # -> TF_VAR_jira_client_email
+export JIRA_CLOUDID="<cloud-uuid>"          # -> TF_VAR_jira_cloud_id; discover via jira skill's get-cloud-id.sh
+export JIRA_CLIENT_TOKEN="<atlassian-api-token>"  # pushed to SSM by deploy_secrets.sh
 ```
 
 ## Quick start
@@ -34,7 +36,7 @@ export JIRA_TOKEN="<atlassian-api-token>"   # pushed to SSM by deploy_secrets.sh
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 ./deploy.sh                                 # gradle build + terraform apply
 # add <functionUrl>/callback as a "Sign-in redirect URI" in okta-admin (browser flow only)
-./deploy_secrets.sh                         # push OKTA_WEB_CLIENT_SECRET + JIRA_TOKEN to SSM
+./deploy_secrets.sh                         # push OKTA_WEB_CLIENT_SECRET + JIRA_CLIENT_TOKEN to SSM
 ```
 
 Secrets are deliberately kept out of terraform state: terraform creates the SSM

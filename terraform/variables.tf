@@ -44,8 +44,8 @@ variable "okta_scopes" {
   default     = ""
 }
 
-variable "jira_email" {
-  description = "Atlassian account email used as the Basic-auth username for the Jira REST API. Set TF_VAR_jira_email or terraform.tfvars."
+variable "jira_client_email" {
+  description = "Atlassian account email used as the Basic-auth username for the Jira REST API. Set TF_VAR_jira_client_email or terraform.tfvars."
   type        = string
 }
 

@@ -35,8 +35,8 @@ else
   echo "OKTA_WEB_CLIENT_SECRET is empty — skipping (browser flow disabled)."
 fi
 
-if [ -n "${JIRA_TOKEN:-}" ]; then
-  push_secret "/mcp-server-lambda/jira-token" "$JIRA_TOKEN"
+if [ -n "${JIRA_CLIENT_TOKEN:-}" ]; then
+  push_secret "/mcp-server-lambda/jira-client-token" "$JIRA_CLIENT_TOKEN"
 else
-  echo "JIRA_TOKEN is empty — skipping (Jira MCP tools will fail without it)."
+  echo "JIRA_CLIENT_TOKEN is empty — skipping (Jira MCP tools will fail without it)."
 fi

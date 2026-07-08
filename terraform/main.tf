@@ -32,8 +32,8 @@ resource "aws_ssm_parameter" "okta_web_client_secret" {
 
 # Same out-of-band pattern as the Okta secret: terraform owns the parameter's
 # existence, the real Jira API token is pushed by ./deploy_secrets.sh.
-resource "aws_ssm_parameter" "jira_token" {
-  name  = "/${var.aws_lambda_function_name}/jira-token"
+resource "aws_ssm_parameter" "jira_client_token" {
+  name  = "/${var.aws_lambda_function_name}/jira-client-token"
   type  = "SecureString"
   value = "placeholder - set the real value with aws ssm put-parameter"
 
@@ -54,7 +54,7 @@ resource "aws_iam_role_policy" "read_secrets" {
         Action = "ssm:GetParameter"
         Resource = [
           aws_ssm_parameter.okta_web_client_secret.arn,
-          aws_ssm_parameter.jira_token.arn
+          aws_ssm_parameter.jira_client_token.arn
         ]
       },
       {
@@ -107,9 +107,9 @@ resource "aws_lambda_function" "this" {
       OKTA_WEB_CLIENT_ID                       = var.okta_web_client_id
       OKTA_WEB_CLIENT_SECRET_SSM_PARAMETER_KEY = aws_ssm_parameter.okta_web_client_secret.name
       OKTA_SCOPES                              = var.okta_scopes
-      JIRA_EMAIL                               = var.jira_email
+      JIRA_CLIENT_EMAIL                        = var.jira_client_email
       JIRA_CLOUD_ID                            = var.jira_cloud_id
-      JIRA_TOKEN_SSM_PARAMETER_KEY             = aws_ssm_parameter.jira_token.name
+      JIRA_CLIENT_TOKEN_SSM_PARAMETER_KEY      = aws_ssm_parameter.jira_client_token.name
     }
   }
 }
