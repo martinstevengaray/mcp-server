@@ -1,34 +1,42 @@
 #!/usr/bin/env bash
-# Push the Okta web app client secret from local/config.sh to SSM
-# Parameter Store. Run after the first ./deploy.sh (terraform creates the
-# parameter shell) and again whenever the secret rotates in Okta.
+# Push secrets from local/config.sh to SSM Parameter Store: the Okta web app
+# client secret and the Jira API token. Run after the first ./deploy.sh
+# (terraform creates the parameter shells) and again whenever a secret rotates.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 source local/config.sh
 
-# Must match terraform: /<aws_lambda_function_name>/okta-web-client-secret
-PARAM_NAME="/mcp-server-lambda/okta-web-client-secret"
+# Push a secret value into an existing SSM SecureString parameter, only writing
+# when the value changed so parameter versions stay meaningful. Terraform owns
+# the parameter's existence; creating it here would make the first apply fail
+# with ParameterAlreadyExists.
+push_secret() {
+  local param_name="$1" value="$2"
+  local current
+  if ! current=$(aws ssm get-parameter --name "$param_name" --with-decryption \
+    --query Parameter.Value --output text 2>/dev/null); then
+    echo "Parameter $param_name not found — run ./deploy.sh first (terraform creates it)." >&2
+    exit 1
+  fi
+  if [ "$current" = "$value" ]; then
+    echo "$param_name already up to date."
+    return
+  fi
+  aws ssm put-parameter --name "$param_name" --type SecureString --overwrite \
+    --value "$value" > /dev/null
+  echo "$param_name updated."
+}
 
-if [ -z "${OKTA_WEB_CLIENT_SECRET:-}" ]; then
-  echo "OKTA_WEB_CLIENT_SECRET is empty — nothing to push (browser flow disabled)."
-  exit 0
+# Must match terraform: /<aws_lambda_function_name>/<name>
+if [ -n "${OKTA_WEB_CLIENT_SECRET:-}" ]; then
+  push_secret "/mcp-server-lambda/okta-web-client-secret" "$OKTA_WEB_CLIENT_SECRET"
+else
+  echo "OKTA_WEB_CLIENT_SECRET is empty — skipping (browser flow disabled)."
 fi
 
-# Terraform owns the parameter's existence; creating it here instead would make
-# the first terraform apply fail with ParameterAlreadyExists.
-if ! CURRENT=$(aws ssm get-parameter --name "$PARAM_NAME" --with-decryption \
-  --query Parameter.Value --output text 2>/dev/null); then
-  echo "Parameter $PARAM_NAME not found — run ./deploy.sh first (terraform creates it)." >&2
-  exit 1
+if [ -n "${JIRA_CLIENT_TOKEN:-}" ]; then
+  push_secret "/mcp-server-lambda/jira-client-token" "$JIRA_CLIENT_TOKEN"
+else
+  echo "JIRA_CLIENT_TOKEN is empty — skipping (Jira MCP tools will fail without it)."
 fi
-
-# Only write when the value changed, so parameter versions stay meaningful.
-if [ "$CURRENT" = "$OKTA_WEB_CLIENT_SECRET" ]; then
-  echo "$PARAM_NAME already up to date."
-  exit 0
-fi
-
-aws ssm put-parameter --name "$PARAM_NAME" --type SecureString --overwrite \
-  --value "$OKTA_WEB_CLIENT_SECRET" > /dev/null
-echo "$PARAM_NAME updated."

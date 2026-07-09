@@ -43,3 +43,19 @@ variable "okta_scopes" {
   type        = string
   default     = ""
 }
+
+variable "okta_mcp_client_id" {
+  description = "Client ID of a pre-registered Okta Native app (public client, PKCE). When set, the DCR shim (/register) hands this id to MCP clients so they can connect without knowing a client_id, and discovery advertises this server as the authorization server. Empty disables the shim. Not a secret."
+  type        = string
+  default     = ""
+}
+
+variable "jira_client_email" {
+  description = "Atlassian account email used as the Basic-auth username for the Jira REST API. Set TF_VAR_jira_client_email or terraform.tfvars."
+  type        = string
+}
+
+variable "jira_cloud_id" {
+  description = "Atlassian Cloud id embedded in the Jira API base URL (https://api.atlassian.com/ex/jira/<cloud_id>/rest/api/3). Discover it via the jira skill's get-cloud-id.sh. Set TF_VAR_jira_cloud_id or terraform.tfvars."
+  type        = string
+}

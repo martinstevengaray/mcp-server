@@ -10,3 +10,4 @@ tfplan
 .idea/
 .vscode/
 local/
+bin/
