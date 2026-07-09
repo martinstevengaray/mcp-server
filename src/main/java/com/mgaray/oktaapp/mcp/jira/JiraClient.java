@@ -1,4 +1,4 @@
-package com.mgaray.oktaapp.jira;
+package com.mgaray.oktaapp.mcp.jira;
 
 import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
@@ -21,7 +21,7 @@ import java.util.Set;
  * the way {@code jira-fmt.py} does. Constructed once per Lambda cold start so
  * the {@link HttpClient} and auth header are reused across warm invocations.
  */
-public class JiraDelegate {
+public class JiraClient {
 
     // Field sets mirror the jira skill's list-my-tasks.sh / get-issue.sh scripts.
     private static final String SEARCH_FIELDS = "summary,status,priority,issuetype,project,description";
@@ -36,7 +36,7 @@ public class JiraDelegate {
     private final String baseUrl;
     private final String authHeader;
 
-    public JiraDelegate(String email, String apiToken, String cloudId) {
+    public JiraClient(String email, String apiToken, String cloudId) {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();

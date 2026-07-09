@@ -32,12 +32,8 @@ public class JsonUtils {
     }
 
     public static <T> T getNestedField(String jsonString, String... path) {
-        try {
-            Map<String, Object> objectMap = objectMapper.readValue(jsonString, new TypeReference<Map<String, Object>>() {});
-            return getNestedField(objectMap, path);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        Map<String, Object> objectMap = parse(jsonString);
+        return getNestedField(objectMap, path);
     }
 
     @SuppressWarnings("unchecked")

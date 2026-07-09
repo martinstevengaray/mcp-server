@@ -1,4 +1,4 @@
-package com.mgaray.oktaapp.jira;
+package com.mgaray.oktaapp.mcp.jira;
 
 /**
  * Raised when the Jira REST API returns a non-2xx response. Carries the HTTP

@@ -2,8 +2,9 @@ package com.mgaray.oktaapp.mcp;
 
 import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
-import com.mgaray.oktaapp.jira.JiraDelegate;
-import com.mgaray.oktaapp.jira.JiraException;
+import com.mgaray.oktaapp.mcp.jira.JiraClient;
+import com.mgaray.oktaapp.mcp.jira.JiraException;
+import com.okta.jwt.Jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -16,12 +17,11 @@ import java.util.Map;
  * HTTP transport. Each Lambda invocation carries a single JSON-RPC request in
  * the body; we dispatch it and return a single JSON-RPC response. No SSE stream
  * and no session id are used (the tools are simple request/response calls).
- * Jira access is delegated to {@link JiraDelegate}.
+ * Jira access is delegated to {@link JiraClient}.
  */
 public class McpHandler {
 
     private static final String DEFAULT_PROTOCOL_VERSION = "2025-06-18";
-    private static final Map<String, String> JSON_HEADERS = Map.of("content-type", "application/json");
 
     // Tool descriptors advertised by tools/list, with JSON Schema for arguments.
     private static final List<Map<String, Object>> TOOLS = List.of(
@@ -60,13 +60,13 @@ public class McpHandler {
                             "status", stringProp("Target status or transition name, e.g. \"In Progress\".")),
                             List.of("key", "status"))));
 
-    private final JiraDelegate jira;
+    private final JiraClient jira;
 
-    public McpHandler(JiraDelegate jira) {
+    public McpHandler(JiraClient jira) {
         this.jira = jira;
     }
 
-    public Map<String, Object> handle(Map<String, Object> event) {
+    public Map<String, Object> handle(Map<String, Object> event, Jwt jwt) {
         Map<String, Object> request;
         try {
             request = JsonUtils.parse(readBody(event));
@@ -81,7 +81,7 @@ public class McpHandler {
         }
         // Notifications (e.g. notifications/initialized) expect no JSON-RPC reply.
         if (method.startsWith("notifications/")) {
-            return HttpUtils.response(202, JSON_HEADERS, "");
+            return HttpUtils.responseJson(202, "");
         }
 
         try {
@@ -176,7 +176,7 @@ public class McpHandler {
         body.put("jsonrpc", "2.0");
         body.put("id", id);
         body.put("result", result);
-        return HttpUtils.response(200, JSON_HEADERS, JsonUtils.toString(body));
+        return HttpUtils.responseJson(200, JsonUtils.toString(body));
     }
 
     private static Map<String, Object> rpcError(Object id, int code, String message) {
@@ -187,7 +187,7 @@ public class McpHandler {
         body.put("jsonrpc", "2.0");
         body.put("id", id);
         body.put("error", error);
-        return HttpUtils.response(200, JSON_HEADERS, JsonUtils.toString(body));
+        return HttpUtils.responseJson(200, JsonUtils.toString(body));
     }
 
     private static String readBody(Map<String, Object> event) {

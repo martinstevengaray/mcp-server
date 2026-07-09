@@ -88,7 +88,7 @@ resource "aws_lambda_function" "this" {
   function_name = var.aws_lambda_function_name
   role          = aws_iam_role.lambda.arn
   runtime       = "java21"
-  handler       = "com.mgaray.oktaapp.OktaAppLambda::handleRequest"
+  handler       = "com.mgaray.oktaapp.McpServerLambda::handleRequest"
 
   filename         = local.lambda_zip
   source_code_hash = filebase64sha256(local.lambda_zip)
