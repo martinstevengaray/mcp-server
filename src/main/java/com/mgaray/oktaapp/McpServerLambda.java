@@ -18,7 +18,7 @@ import java.util.*;
 
 public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
-    private static final boolean DEBUG = true;
+    public static final boolean DEBUG = true;
 
     private static final String MCP_PATH = "/mcp";
 
@@ -83,7 +83,9 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
     public Map<String, Object> handleInvalidRequest(Map<String, Object> request, List<String> errors, Context context) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("awsRequestId", context.getAwsRequestId());
-        response.put("request", request);
+        if (DEBUG) {
+            response.put("request", request);
+        }
         response.put("errors", errors);
         return HttpUtils.responseJson(400, response);
     }
