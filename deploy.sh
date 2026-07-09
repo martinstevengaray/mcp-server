@@ -19,6 +19,8 @@ source local/config.sh
 export TF_VAR_okta_issuer="https://${OKTA_URL_PREFIX}.okta.com/oauth2/default"
 export TF_VAR_okta_web_client_id="${OKTA_WEB_CLIENT_ID:-}"
 export TF_VAR_okta_scopes="${OKTA_SCOPES:-}"
+# Pre-registered Native app id handed out by the DCR shim (empty disables it).
+export TF_VAR_okta_mcp_client_id="${OKTA_MCP_CLIENT_ID:-}"
 
 export TF_VAR_jira_client_email=$JIRA_CLIENT_EMAIL
 export TF_VAR_jira_cloud_id=$JIRA_CLOUDID

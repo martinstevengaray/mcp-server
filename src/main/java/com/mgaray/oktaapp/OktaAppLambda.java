@@ -10,12 +10,15 @@ import com.mgaray.oktaapp.mcp.McpHandler;
 import com.okta.jwt.Jwt;
 import com.okta.jwt.JwtVerificationException;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
     private static final String MCP_PATH = "/mcp";
+    private static final String REGISTER_PATH = "/register";
     private static final String WELL_KNOWN_PREFIX = "/.well-known/";
     private static final String PROTECTED_RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
 
@@ -29,7 +32,10 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
         String oktaScopes = System.getenv("OKTA_SCOPES");
         String oktaWebClientSecretSsmParameterKey = System.getenv("OKTA_WEB_CLIENT_SECRET_SSM_PARAMETER_KEY");
         String oktaWebClientSecret = AwsServicesDelegate.fetchSmmParameterValue(oktaWebClientSecretSsmParameterKey);
-        this.oktaDelegate = new OktaDelegate(oktaIssuer, oktaAudience, oktaWebClientId, oktaWebClientSecret, oktaScopes);
+        // Pre-registered Okta Native app id handed out by the DCR shim (empty => shim off).
+        String oktaMcpClientId = System.getenv("OKTA_MCP_CLIENT_ID");
+        this.oktaDelegate = new OktaDelegate(oktaIssuer, oktaAudience, oktaWebClientId,
+                oktaWebClientSecret, oktaScopes, oktaMcpClientId);
 
         String jiraEmail = System.getenv("JIRA_CLIENT_EMAIL");
         String jiraCloudId = System.getenv("JIRA_CLOUD_ID");
@@ -42,6 +48,9 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
         if (path != null && path.startsWith(WELL_KNOWN_PREFIX)) {
             return handleWellKnown(path, event);
+        }
+        if (REGISTER_PATH.equals(path)) {
+            return oktaDelegate.registerClient(readBody(event));
         }
         if (MCP_PATH.equals(path)) {
             return handleMcpRequest(event);
@@ -68,10 +77,19 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
         // oauth-authorization-server and openid-configuration both describe the AS.
         if (path.contains("oauth-authorization-server") || path.contains("openid-configuration")) {
             return HttpUtils.response(200, jsonHeaders,
-                    JsonUtils.toString(oktaDelegate.authorizationServerMetadata()));
+                    JsonUtils.toString(oktaDelegate.authorizationServerMetadata(domainName)));
         }
         return HttpUtils.response(404, jsonHeaders,
                 JsonUtils.toString(Map.of("error", "not_found")));
+    }
+
+    // Decodes the request body, honoring API Gateway / Function URL base64 encoding.
+    private static String readBody(Map<String, Object> event) {
+        String body = event.get("body") instanceof String s ? s : "";
+        if (Boolean.TRUE.equals(event.get("isBase64Encoded"))) {
+            body = new String(Base64.getDecoder().decode(body), StandardCharsets.UTF_8);
+        }
+        return body;
     }
 
     // MCP clients authenticate with an Okta Bearer token (client_credentials flow),
