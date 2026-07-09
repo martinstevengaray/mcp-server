@@ -71,6 +71,19 @@ public class OktaDelegate {
         return verifier.decode(token);
     }
 
+
+
+    public Map<String, Object> authenticationRedirectNativeApp(Map<String, Object> event) { //to support mcp clients
+        String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
+        String wwwAuthenticate = "Bearer resource_metadata=\"https://" + domainName
+                + PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH + "\"";
+        return HttpUtils.response(401,
+                Map.of("content-type", "application/json", "www-authenticate", wwwAuthenticate),
+                JsonUtils.toString(Map.of(
+                        "error", "unauthorized",
+                        "message", "A valid Okta bearer token is required")));
+    }
+
     public Map<String, Object> handleWellKnown(String path, Map<String, Object> event) {
         String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
         Map<String, String> jsonHeaders = Map.of("content-type", "application/json");

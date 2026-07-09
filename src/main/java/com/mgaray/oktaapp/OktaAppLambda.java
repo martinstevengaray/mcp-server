@@ -53,7 +53,12 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
             return oktaDelegate.registerClient(event);
         }
         if (MCP_PATH.equals(path)) {
-            return handleMcpRequest(event);
+            try {
+                Jwt jwt = oktaDelegate.readJwt(event);
+                return mcpHandler.handle(event, jwt);
+            } catch (JwtVerificationException e) {
+                return oktaDelegate.authenticationRedirectNativeApp(event);
+            }
         }
         Jwt jwt;
         try {
@@ -96,21 +101,22 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
     // so a failed verification returns a JSON 401 rather than the browser redirect.
     // The www-authenticate header points at our RFC 9728 metadata so the client can
     // discover the Okta authorization server (see handleWellKnown).
-    private Map<String, Object> handleMcpRequest(Map<String, Object> event) {
-        try {
-            oktaDelegate.readJwt(event);
-        } catch (JwtVerificationException e) {
-            String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
-            String wwwAuthenticate = "Bearer resource_metadata=\"https://" + domainName
-                    + PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH + "\"";
-            return HttpUtils.response(401,
-                    Map.of("content-type", "application/json", "www-authenticate", wwwAuthenticate),
-                    JsonUtils.toString(Map.of(
-                            "error", "unauthorized",
-                            "message", "A valid Okta bearer token is required")));
-        }
-        return mcpHandler.handle(event);
-    }
+//    private Map<String, Object> handleMcpRequest(Map<String, Object> event) {
+//        try {
+//            oktaDelegate.readJwt(event);
+//        } catch (JwtVerificationException e) {
+//            return oktaDelegate.authenticationRedirectNativeApp(event);
+////            String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
+////            String wwwAuthenticate = "Bearer resource_metadata=\"https://" + domainName
+////                    + PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH + "\"";
+////            return HttpUtils.response(401,
+////                    Map.of("content-type", "application/json", "www-authenticate", wwwAuthenticate),
+////                    JsonUtils.toString(Map.of(
+////                            "error", "unauthorized",
+////                            "message", "A valid Okta bearer token is required")));
+//        }
+//        return mcpHandler.handle(event);
+//    }
 
     private Map<String, Object> createSuccessResponse(Map<String, Object> event, Jwt jwt, Context context) {
         Map<String, Object> response = new LinkedHashMap<>();

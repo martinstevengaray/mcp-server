@@ -4,6 +4,7 @@ import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
 import com.mgaray.oktaapp.jira.JiraDelegate;
 import com.mgaray.oktaapp.jira.JiraException;
+import com.okta.jwt.Jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -66,7 +67,7 @@ public class McpHandler {
         this.jira = jira;
     }
 
-    public Map<String, Object> handle(Map<String, Object> event) {
+    public Map<String, Object> handle(Map<String, Object> event, Jwt jwt) {
         Map<String, Object> request;
         try {
             request = JsonUtils.parse(readBody(event));
