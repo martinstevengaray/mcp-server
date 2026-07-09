@@ -52,7 +52,6 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
                 return handleInvalidRequest(request, errors, context);
             }
             String path = JsonUtils.getNestedField(request, "requestContext", "http", "path");
-            assert path != null;
             if (oktaDelegate.isPublicPath(path)) {
                 return oktaDelegate.handlePublicPath(path, request, logger);
             }

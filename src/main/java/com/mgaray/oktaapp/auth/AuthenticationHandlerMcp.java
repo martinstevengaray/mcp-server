@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.mgaray.oktaapp.auth.OktaDelegate.PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX;
+import static com.mgaray.oktaapp.auth.OktaDelegate.WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX;
 import static com.mgaray.oktaapp.auth.OktaDelegate.REGISTER_PATH;
 
 class AuthenticationHandlerMcp {
@@ -28,7 +28,7 @@ class AuthenticationHandlerMcp {
     Map<String, Object> authenticationRedirectMcp(Map<String, Object> event) { //to support mcp clients
         String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
         String wwwAuthenticate = "Bearer resource_metadata=\"https://" + domainName
-                + PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX + "\"";
+                + WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX + "\"";
         return HttpUtils.responseJson(401,
                 Map.of("www-authenticate", wwwAuthenticate),
                 JsonUtils.toString(Map.of(

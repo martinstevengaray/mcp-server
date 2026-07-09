@@ -13,14 +13,13 @@ import java.util.Map;
 
 public class OktaDelegate {
 
-
+    static final String OKTA_TOKEN_COOKIE = "okta_token";
     static final String REGISTER_PATH = "/register";
     static final String CALLBACK_PATH = "/callback";
-    static final String PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
-    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
-    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
+    static final String WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
+    private static final String WELL_KNOWN_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
+    private static final String WELL_KNOWN_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
 
-    private static final String OKTA_TOKEN_COOKIE = "okta_token";
     private final AccessTokenVerifier verifier;
 
     private final AuthenticationHandlerMcp authenticationHandlerMcp;
@@ -50,19 +49,19 @@ public class OktaDelegate {
     }
 
     public boolean isPublicPath(String path) {
-        return (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX) ||
-                path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX) ||
-                path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX) ||
+        return (path.startsWith(WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX) ||
+                path.startsWith(WELL_KNOWN_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX) ||
+                path.startsWith(WELL_KNOWN_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX) ||
                 REGISTER_PATH.equals(path) ||
                 CALLBACK_PATH.equals(path));
     }
 
     public Map<String, Object> handlePublicPath(String path, Map<String, Object> event, Logger logger) {
-        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX)) {
+        if (path.startsWith(WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX)) {
             return authenticationHandlerMcp.handleOauthProtectedResource(event);
         }
-        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX) ||
-                path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX)) {
+        if (path.startsWith(WELL_KNOWN_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX) ||
+                path.startsWith(WELL_KNOWN_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX)) {
             return authenticationHandlerMcp.handleOauthAuthorizationServer(event);
         }
         if (REGISTER_PATH.equals(path)) {

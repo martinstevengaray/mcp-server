@@ -18,10 +18,10 @@ import java.util.List;
 import java.util.Map;
 
 import static com.mgaray.oktaapp.auth.OktaDelegate.CALLBACK_PATH;
+import static com.mgaray.oktaapp.auth.OktaDelegate.OKTA_TOKEN_COOKIE;
 
 class AuthenticationHandlerWeb {
 
-    private static final String OKTA_TOKEN_COOKIE = "okta_token";
     private static final String OATH_STATE_COOKIE = "oauth_state";
 
     private final String oktaIssuer;
