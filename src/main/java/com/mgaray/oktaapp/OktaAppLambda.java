@@ -2,28 +2,29 @@ package com.mgaray.oktaapp;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.mgaray.oktaapp.Logger.Logger;
 import com.mgaray.oktaapp.common.AwsServicesDelegate;
+import com.mgaray.oktaapp.common.CommonUtils;
 import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
 import com.mgaray.oktaapp.jira.JiraDelegate;
 import com.mgaray.oktaapp.mcp.McpHandler;
+import com.mgaray.oktaapp.okta.OktaDelegate;
 import com.mgaray.oktaapp.webapp.WepHandler;
 import com.okta.jwt.Jwt;
 import com.okta.jwt.JwtVerificationException;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<String, Object>> {
+
+    private static final boolean DEBUG = true;
 
     public static final String REGISTER_PATH = "/register";
     public static final String CALLBACK_PATH = "/callback";
     public static final String PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
 
     private static final String MCP_PATH = "/mcp";
-    private static final String WELL_KNOWN_PREFIX = "/.well-known/";
-    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
-    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
 
     private final OktaDelegate oktaDelegate;
     private final McpHandler mcpHandler;
@@ -48,50 +49,64 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
 
     @Override
     public Map<String, Object> handleRequest(Map<String, Object> event, Context context) {
-        if (!validate(event)) {
-            return handleInvalidRequest(event, context);
-        }
-        String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
-        //public endpoints for authentication flow
-        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX)) {
-            return oktaDelegate.handleOauthProtectedResource(event);
-        }
-        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX)) {
-            return oktaDelegate.handleOauthAuthorizationServer(event);
-        }
-        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX)) {
-            return oktaDelegate.handleOauthAuthorizationServer(event);
-        }
-        if (REGISTER_PATH.equals(path)) {
-            return oktaDelegate.handleRegister(event);
-        }
-        if (CALLBACK_PATH.equals(path)) {
-            return oktaDelegate.handleCallback(event, context);
-        }
-        //private endpoints for mcp and web apps
+        Logger logger = new Logger(context);
         try {
-            Jwt jwt = oktaDelegate.readJwt(event);
-            return MCP_PATH.equals(path) ?
-                    mcpHandler.handle(event, jwt) :
-                    webHandler.handle(event, jwt, context);
-        } catch (JwtVerificationException e) {
-            return MCP_PATH.equals(path) ?
-                    oktaDelegate.authenticationRedirectMcp(event) :
-                    oktaDelegate.authenticationRedirectWeb(event, context);
+            List<String> errors = validate(event);
+            if (!errors.isEmpty()) {
+                return handleInvalidRequest(event, errors, context);
+            }
+            String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
+            assert path != null;
+            if (oktaDelegate.isPathPublic(path)) {
+                return oktaDelegate.handlePublicPath(path, event, logger);
+            }
+            try {
+                Jwt jwt = oktaDelegate.readJwt(event);
+                return MCP_PATH.equals(path) ?
+                        mcpHandler.handle(event, jwt) :
+                        webHandler.handle(event, jwt, context);
+            } catch (JwtVerificationException e) {
+                return MCP_PATH.equals(path) ?
+                        oktaDelegate.authenticationRedirectMcp(event) :
+                        oktaDelegate.authenticationRedirectWeb(event);
+            }
+        } catch (Exception e) {
+            logger.error("Unexpected exception: ", e);
+            return handleUnexpectedException(event, e, context);
         }
     }
 
-    private boolean validate(Map<String, Object> event) {
+    private List<String> validate(Map<String, Object> event) {
+        List<String> errors = new ArrayList<>();
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
-        return (path != null);
+        if (path == null) {
+            errors.add("invalid path");
+        }
+        return errors;
     }
 
-    public Map<String, Object> handleInvalidRequest(Map<String, Object> event, Context context) {
+    public Map<String, Object> handleInvalidRequest(Map<String, Object> event, List<String> errors, Context context) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("awsRequestId", context.getAwsRequestId());
-        response.put("error", "invalid request");
         response.put("request", event);
-        return HttpUtils.responseJson(500, response);
+        response.put("errors", errors);
+        return HttpUtils.responseJson(400, response);
     }
+
+    public Map<String, Object> handleUnexpectedException(Map<String, Object> event, Exception e, Context context) {
+        if (DEBUG) {
+            Map<String, Object> exception = new LinkedHashMap<>();
+            exception.put("type", e.getClass().getName());
+            exception.put("message", e.getMessage());
+            exception.put("stackTrace", CommonUtils.getStackTrace(e));
+            Map<String, Object> exceptionDetails = new LinkedHashMap<>();
+            exceptionDetails.put("awsRequestId", context.getAwsRequestId());
+            exceptionDetails.put("request", event);
+            exceptionDetails.put("exception", exception);
+            return HttpUtils.responseJson(500, exceptionDetails);
+        }
+        return HttpUtils.responseJson(500, "Please try again later");
+    }
+
 
 }

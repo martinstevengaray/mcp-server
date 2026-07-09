@@ -1,4 +1,4 @@
-package com.mgaray.oktaapp;
+package com.mgaray.oktaapp.okta;
 
 import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
@@ -9,8 +9,7 @@ import java.util.Map;
 import static com.mgaray.oktaapp.OktaAppLambda.PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX;
 import static com.mgaray.oktaapp.OktaAppLambda.REGISTER_PATH;
 
-public class OktaMcpDelegate {
-
+public class McpAuthenticationHandler {
 
     private final String oktaIssuer;
     private final List<String> oktaScopes;
@@ -18,9 +17,9 @@ public class OktaMcpDelegate {
     // MCP clients so they never attempt real (anonymous) registration against Okta.
     private final String oktaMcpClientId;
 
-    public OktaMcpDelegate(String oktaIssuer,
-                           String oktaScopes,
-                           String oktaMcpClientId) {
+    public McpAuthenticationHandler(String oktaIssuer,
+                                    String oktaScopes,
+                                    String oktaMcpClientId) {
         this.oktaIssuer = oktaIssuer;
         this.oktaScopes = List.of(oktaScopes.trim().split("\\s+"));
         this.oktaMcpClientId = oktaMcpClientId;

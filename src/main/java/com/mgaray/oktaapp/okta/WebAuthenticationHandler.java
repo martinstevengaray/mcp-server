@@ -1,6 +1,6 @@
-package com.mgaray.oktaapp;
+package com.mgaray.oktaapp.okta;
 
-import com.amazonaws.services.lambda.runtime.Context;
+import com.mgaray.oktaapp.Logger.Logger;
 import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
 import com.okta.jwt.AccessTokenVerifier;
@@ -19,7 +19,7 @@ import java.util.Map;
 
 import static com.mgaray.oktaapp.OktaAppLambda.CALLBACK_PATH;
 
-public class OktaWebDelegate {
+public class WebAuthenticationHandler {
 
     private static final String OKTA_TOKEN_COOKIE = "okta_token";
     private static final String OATH_STATE_COOKIE = "oauth_state";
@@ -33,11 +33,11 @@ public class OktaWebDelegate {
     private final HttpClient httpClient;
     private final SecureRandom secureRandom;
 
-    public OktaWebDelegate(String oktaIssuer,
-                        String oktaWebClientId,
-                        String oktaWebClientSecret,
-                        String oktaScopes,
-                        AccessTokenVerifier verifier) {
+    public WebAuthenticationHandler(String oktaIssuer,
+                                    String oktaWebClientId,
+                                    String oktaWebClientSecret,
+                                    String oktaScopes,
+                                    AccessTokenVerifier verifier) {
         this.oktaIssuer = oktaIssuer;
         this.oktaWebClientId = oktaWebClientId;
         this.oktaWebClientSecret = oktaWebClientSecret;
@@ -49,7 +49,7 @@ public class OktaWebDelegate {
         this.secureRandom = new SecureRandom();
     }
 
-    public Map<String, Object> authenticationRedirectWeb(Map<String, Object> event, Context context) {
+    public Map<String, Object> authenticationRedirectWeb(Map<String, Object> event) {
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
         byte[] randomTokenBytes = new byte[24];
         secureRandom.nextBytes(randomTokenBytes);
@@ -70,11 +70,11 @@ public class OktaWebDelegate {
     }
 
     // Exchanges the authorization code for an access token, stores it in a session cookie, then redirect back to self.
-    public Map<String, Object> handleCallback(Map<String, Object> event, Context context) {
+    public Map<String, Object> handleCallback(Map<String, Object> event, Logger logger) {
         final String error = JsonUtils.getNestedField(event, "queryStringParameters", "error");
         if (error != null) {
             String errorDescription = JsonUtils.getNestedField(event, "queryStringParameters", "error_description");
-            context.getLogger().log("Okta sign-in failed: " + error + " — " + errorDescription);
+            logger.log("Okta sign-in failed: " + error + " — " + errorDescription);
             return HttpUtils.htmlError(400, "Okta sign-in failed");
         }
         final String code = JsonUtils.getNestedField(event, "queryStringParameters", "code");
@@ -99,18 +99,18 @@ public class OktaWebDelegate {
                     .build();
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                context.getLogger().log("token exchange failed: " + response.body());
+                logger.log("token exchange failed: " + response.body());
                 return HttpUtils.htmlError(502, "Token exchange with Okta failed");
             }
         } catch (Exception e) {
-            context.getLogger().log("token exchange failed: " + e);
+            logger.log("token exchange failed: " + e);
             return HttpUtils.htmlError(502, "Could not reach Okta to complete sign-in.");
         }
         String accessToken = JsonUtils.getNestedField(response.body(), "access_token");
         try {
             verifier.decode(accessToken); // Verify once before trusting the cookie to avoid a redirect loop
         } catch (JwtVerificationException e) {
-            context.getLogger().log("token from Okta failed verification: " + e.getMessage());
+            logger.log("token from Okta failed verification: " + e.getMessage());
             return HttpUtils.htmlError(500, "Okta issued a token this service could not verify.");
         }
         String originallyRequestedUrl = new String(
