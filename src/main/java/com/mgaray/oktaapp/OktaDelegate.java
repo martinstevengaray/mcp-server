@@ -20,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.mgaray.oktaapp.OktaAppLambda.PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH;
+
 public class OktaDelegate {
 
     private static final String OKTA_TOKEN_COOKIE = "okta_token";
@@ -69,6 +71,22 @@ public class OktaDelegate {
         return verifier.decode(token);
     }
 
+    public Map<String, Object> handleWellKnown(String path, Map<String, Object> event) {
+        String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
+        Map<String, String> jsonHeaders = Map.of("content-type", "application/json");
+        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH)) {
+            return HttpUtils.response(200, jsonHeaders,
+                    JsonUtils.toString(protectedResourceMetadata(domainName)));
+        }
+        // endpoints '/.well-known/oauth-authorization-server' and '/.well-known/openid-configuration' both describe the AS.
+        if (path.contains("oauth-authorization-server") || path.contains("openid-configuration")) {
+            return HttpUtils.response(200, jsonHeaders,
+                    JsonUtils.toString(authorizationServerMetadata(domainName)));
+        }
+        return HttpUtils.response(404, jsonHeaders,
+                JsonUtils.toString(Map.of("error", "not_found")));
+    }
+
     // True when a pre-registered MCP (Native) client id is configured, turning on the
     // DCR shim (/register). When off, clients must be told a static client_id and
     // discovery points straight at the Okta issuer.
@@ -80,7 +98,7 @@ public class OktaDelegate {
     // server guards the /mcp resource. The 401 from /mcp points here. With the shim on
     // we advertise *ourselves* as the AS so clients discover our /register; otherwise
     // we point straight at Okta.
-    public Map<String, Object> protectedResourceMetadata(String domainName) {
+    private Map<String, Object> protectedResourceMetadata(String domainName) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("resource", "https://" + domainName + "/mcp");
         String authServer = "https://" + domainName; //alternatively 'authServer = oktaIssuer;'
@@ -100,7 +118,7 @@ public class OktaDelegate {
     // authorize/token/keys to Okta — so a DCR-only MCP client can "register" (and get
     // our pre-registered Native client_id back) even though Okta has no anonymous DCR.
     // With the shim off we simply mirror Okta and omit registration.
-    public Map<String, Object> authorizationServerMetadata(String domainName) {
+    private Map<String, Object> authorizationServerMetadata(String domainName) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("issuer", "https://" + domainName); // alternatively  oktaIssuer
         metadata.put("authorization_endpoint", oktaIssuer + "/v1/authorize");
@@ -143,6 +161,8 @@ public class OktaDelegate {
         }
         return HttpUtils.response(201, JSON_HEADERS, JsonUtils.toString(response));
     }
+
+    //-----above for native-app, below or web-app
 
     public Map<String, Object> authenticationRedirects(Map<String, Object> event, Context context) {
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
