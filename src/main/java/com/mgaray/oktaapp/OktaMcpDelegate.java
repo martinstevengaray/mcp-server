@@ -106,7 +106,7 @@ public class OktaMcpDelegate {
     // client's own metadata so its local validation is satisfied. NOTE: that Native app
     // must already have each client's redirect_uri registered in Okta — the shim can't
     // add them (that was the real proxy's job).
-    public Map<String, Object> registerClient(Map<String, Object> event) {
+    public Map<String, Object> handleRegister(Map<String, Object> event) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("client_id", oktaMcpClientId);
         response.put("token_endpoint_auth_method", "none");

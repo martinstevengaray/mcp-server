@@ -12,6 +12,8 @@ import com.okta.jwt.JwtVerificationException;
 
 import java.util.Map;
 
+import static com.mgaray.oktaapp.OktaWebDelegate.CALLBACK_PATH;
+
 public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
     private static final String MCP_PATH = "/mcp";
@@ -47,7 +49,10 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
             return oktaDelegate.handleWellKnown(path, event);
         }
         if (REGISTER_PATH.equals(path)) {
-            return oktaDelegate.registerClient(event);
+            return oktaDelegate.handleRegister(event);
+        }
+        if (CALLBACK_PATH.equals(path)) {
+            return oktaDelegate.handleCallback(event, context);
         }
         //private endpoints for mcp and web apps
         try {

@@ -21,7 +21,7 @@ public class OktaWebDelegate {
 
     private static final String OKTA_TOKEN_COOKIE = "okta_token";
     private static final String OATH_STATE_COOKIE = "oauth_state";
-    private static final String CALLBACK_PATH = "/callback";
+    public static final String CALLBACK_PATH = "/callback";
 
     private final String oktaIssuer;
     private final String oktaWebClientId;
@@ -48,17 +48,8 @@ public class OktaWebDelegate {
         this.secureRandom = new SecureRandom();
     }
 
-
     public Map<String, Object> authenticationRedirectWeb(Map<String, Object> event, Context context) {
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
-        if (!CALLBACK_PATH.equals(path)) {
-            return redirectToOkta(event, path);
-        }
-        return callback(event, context);
-    }
-
-    // Redirects browser to Okta, remembering where it wanted to go in the state cookie.
-    private Map<String, Object> redirectToOkta(Map<String, Object> event, String path) {
         byte[] randomTokenBytes = new byte[24];
         secureRandom.nextBytes(randomTokenBytes);
         String state = base64Url(randomTokenBytes);
@@ -82,7 +73,7 @@ public class OktaWebDelegate {
     }
 
     // Exchanges the authorization code for an access token, stores it in a session cookie, then redirect back to self.
-    private Map<String, Object> callback(Map<String, Object> event, Context context) {
+    public Map<String, Object> handleCallback(Map<String, Object> event, Context context) {
         final String error = JsonUtils.getNestedField(event, "queryStringParameters", "error");
         if (error != null) {
             String errorDescription = JsonUtils.getNestedField(event, "queryStringParameters", "error_description");

@@ -61,12 +61,16 @@ public class OktaDelegate {
         return this.oktaMcpDelegate.handleWellKnown(path, event);
     }
 
-    public Map<String, Object> registerClient(Map<String, Object> event) {
-        return this.oktaMcpDelegate.registerClient(event);
+    public Map<String, Object> handleRegister(Map<String, Object> event) {
+        return this.oktaMcpDelegate.handleRegister(event);
     }
 
     public Map<String, Object> authenticationRedirectWeb(Map<String, Object> event, Context context) {
         return this.oktaWebDelegate.authenticationRedirectWeb(event, context);
+    }
+
+    public Map<String, Object> handleCallback(Map<String, Object> event, Context context) {
+        return this.oktaWebDelegate.handleCallback(event, context);
     }
 
 
