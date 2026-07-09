@@ -22,7 +22,7 @@ import static com.mgaray.oktaapp.auth.OktaDelegate.OKTA_TOKEN_COOKIE;
 
 class AuthenticationHandlerWeb {
 
-    private static final String OATH_STATE_COOKIE = "oauth_state";
+    private static final String OAUTH_STATE_COOKIE = "oauth_state";
 
     private final String oktaIssuer;
     private final String oktaWebClientId;
@@ -65,7 +65,7 @@ class AuthenticationHandlerWeb {
                 + "&redirect_uri=" + HttpUtils.urlEncode(redirectUri)
                 + "&state=" + state;
         return HttpUtils.response(302, Map.of("location", authorizeUrl), "",
-                List.of(OATH_STATE_COOKIE + "=" + state + "." + original
+                List.of(OAUTH_STATE_COOKIE + "=" + state + "." + original
                         + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=300"));
     }
 
@@ -79,7 +79,7 @@ class AuthenticationHandlerWeb {
         }
         final String code = JsonUtils.getNestedField(event, "queryStringParameters", "code");
         final String state = JsonUtils.getNestedField(event, "queryStringParameters", "state");
-        final String oathStateCookie = HttpUtils.readCookieValue(event, OATH_STATE_COOKIE);
+        final String oathStateCookie = HttpUtils.readCookieValue(event, OAUTH_STATE_COOKIE);
         if (code == null || state == null || oathStateCookie == null || !oathStateCookie.startsWith(state + ".")) {
             return HttpUtils.htmlError(400, "Login state mismatch, retry.");
         }
@@ -119,7 +119,7 @@ class AuthenticationHandlerWeb {
         Integer maxAge =  JsonUtils.getNestedField(response.body(), "expires_in");
         return HttpUtils.response(302, Map.of("location", originallyRequestedUrl), "", List.of(
                 OKTA_TOKEN_COOKIE + "=" + accessToken + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=" + maxAge,
-                OATH_STATE_COOKIE + "=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0")); //clear out oath cookie
+                OAUTH_STATE_COOKIE + "=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0")); //clear out oath cookie
     }
 
 }
