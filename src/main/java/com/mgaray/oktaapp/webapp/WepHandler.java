@@ -26,8 +26,7 @@ public class WepHandler {
         response.put("body", event.get("body"));
         response.put("requestId", context.getAwsRequestId());
         response.put("jwtClaims", jwt.getClaims());
-        return HttpUtils.response(200, Map.of("content-type", "application/json"),
-                JsonUtils.toString(response));
+        return HttpUtils.responseJson(200, JsonUtils.toString(response));
     }
 
 }

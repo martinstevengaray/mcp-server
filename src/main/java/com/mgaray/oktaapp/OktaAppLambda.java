@@ -3,6 +3,7 @@ package com.mgaray.oktaapp;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.mgaray.oktaapp.common.AwsServicesDelegate;
+import com.mgaray.oktaapp.common.HttpUtils;
 import com.mgaray.oktaapp.common.JsonUtils;
 import com.mgaray.oktaapp.jira.JiraDelegate;
 import com.mgaray.oktaapp.mcp.McpHandler;
@@ -10,16 +11,19 @@ import com.mgaray.oktaapp.webapp.WepHandler;
 import com.okta.jwt.Jwt;
 import com.okta.jwt.JwtVerificationException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
-
-import static com.mgaray.oktaapp.OktaMcpDelegate.*;
-import static com.mgaray.oktaapp.OktaWebDelegate.CALLBACK_PATH;
 
 public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
+    public static final String REGISTER_PATH = "/register";
+    public static final String CALLBACK_PATH = "/callback";
+    public static final String PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
+
     private static final String MCP_PATH = "/mcp";
-    private static final String REGISTER_PATH = "/register";
     private static final String WELL_KNOWN_PREFIX = "/.well-known/";
+    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
+    private static final String PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
 
     private final OktaDelegate oktaDelegate;
     private final McpHandler mcpHandler;
@@ -44,19 +48,19 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
 
     @Override
     public Map<String, Object> handleRequest(Map<String, Object> event, Context context) {
+        if (!validate(event)) {
+            return handleInvalidRequest(event, context);
+        }
         String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
         //public endpoints for authentication flow
-        if (path != null && path.startsWith(WELL_KNOWN_PREFIX)) {
-            if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX)) {
-                return oktaDelegate.handleOauthProtectedResource(event);
-            }
-            if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX)) {
-                return oktaDelegate.handleOauthAuthorizationServer(event);
-            }
-            if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX)) {
-                return oktaDelegate.handleOauthAuthorizationServer(event);
-            }
-            throw new IllegalStateException("unknown " + WELL_KNOWN_PREFIX + " path");
+        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX)) {
+            return oktaDelegate.handleOauthProtectedResource(event);
+        }
+        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX)) {
+            return oktaDelegate.handleOauthAuthorizationServer(event);
+        }
+        if (path.startsWith(PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX)) {
+            return oktaDelegate.handleOauthAuthorizationServer(event);
         }
         if (REGISTER_PATH.equals(path)) {
             return oktaDelegate.handleRegister(event);
@@ -75,6 +79,19 @@ public class OktaAppLambda implements RequestHandler<Map<String, Object>, Map<St
                     oktaDelegate.authenticationRedirectMcp(event) :
                     oktaDelegate.authenticationRedirectWeb(event, context);
         }
+    }
+
+    private boolean validate(Map<String, Object> event) {
+        String path = JsonUtils.getNestedField(event, "requestContext", "http", "path");
+        return (path != null);
+    }
+
+    public Map<String, Object> handleInvalidRequest(Map<String, Object> event, Context context) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("awsRequestId", context.getAwsRequestId());
+        response.put("error", "invalid request");
+        response.put("request", event);
+        return HttpUtils.responseJson(500, response);
     }
 
 }

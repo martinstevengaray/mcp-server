@@ -17,11 +17,12 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import static com.mgaray.oktaapp.OktaAppLambda.CALLBACK_PATH;
+
 public class OktaWebDelegate {
 
     private static final String OKTA_TOKEN_COOKIE = "okta_token";
     private static final String OATH_STATE_COOKIE = "oauth_state";
-    public static final String CALLBACK_PATH = "/callback";
 
     private final String oktaIssuer;
     private final String oktaWebClientId;

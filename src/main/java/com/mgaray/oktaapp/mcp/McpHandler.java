@@ -22,7 +22,6 @@ import java.util.Map;
 public class McpHandler {
 
     private static final String DEFAULT_PROTOCOL_VERSION = "2025-06-18";
-    private static final Map<String, String> JSON_HEADERS = Map.of("content-type", "application/json");
 
     // Tool descriptors advertised by tools/list, with JSON Schema for arguments.
     private static final List<Map<String, Object>> TOOLS = List.of(
@@ -82,7 +81,7 @@ public class McpHandler {
         }
         // Notifications (e.g. notifications/initialized) expect no JSON-RPC reply.
         if (method.startsWith("notifications/")) {
-            return HttpUtils.response(202, JSON_HEADERS, "");
+            return HttpUtils.responseJson(202, "");
         }
 
         try {
@@ -177,7 +176,7 @@ public class McpHandler {
         body.put("jsonrpc", "2.0");
         body.put("id", id);
         body.put("result", result);
-        return HttpUtils.response(200, JSON_HEADERS, JsonUtils.toString(body));
+        return HttpUtils.responseJson(200, JsonUtils.toString(body));
     }
 
     private static Map<String, Object> rpcError(Object id, int code, String message) {
@@ -188,7 +187,7 @@ public class McpHandler {
         body.put("jsonrpc", "2.0");
         body.put("id", id);
         body.put("error", error);
-        return HttpUtils.response(200, JSON_HEADERS, JsonUtils.toString(body));
+        return HttpUtils.responseJson(200, JsonUtils.toString(body));
     }
 
     private static String readBody(Map<String, Object> event) {

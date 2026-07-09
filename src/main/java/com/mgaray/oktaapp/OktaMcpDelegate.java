@@ -6,13 +6,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.mgaray.oktaapp.OktaAppLambda.PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX;
+import static com.mgaray.oktaapp.OktaAppLambda.REGISTER_PATH;
+
 public class OktaMcpDelegate {
 
-    private static final String REGISTER_PATH = "/register";
-    public static final String PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
-    private static final Map<String, String> JSON_HEADERS = Map.of("content-type", "application/json");
-    public static final String PROTECTED_RESOURCE_METADATA_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
-    public static final String PROTECTED_RESOURCE_METADATA_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
 
     private final String oktaIssuer;
     private final List<String> oktaScopes;
@@ -32,8 +30,8 @@ public class OktaMcpDelegate {
         String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
         String wwwAuthenticate = "Bearer resource_metadata=\"https://" + domainName
                 + PROTECTED_RESOURCE_METADATA_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX + "\"";
-        return HttpUtils.response(401,
-                Map.of("content-type", "application/json", "www-authenticate", wwwAuthenticate),
+        return HttpUtils.responseJson(401,
+                Map.of("www-authenticate", wwwAuthenticate),
                 JsonUtils.toString(Map.of(
                         "error", "unauthorized",
                         "message", "A valid Okta bearer token is required")));
@@ -45,7 +43,6 @@ public class OktaMcpDelegate {
     // we point straight at Okta.
     public Map<String, Object> handleOauthProtectedResource(Map<String, Object> event) {
         String domainName = JsonUtils.getNestedField(event, "requestContext", "domainName");
-        Map<String, String> jsonHeaders = Map.of("content-type", "application/json");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("resource", "https://" + domainName + "/mcp");
         String authServer = "https://" + domainName; //alternatively 'authServer = oktaIssuer;'
@@ -53,7 +50,7 @@ public class OktaMcpDelegate {
         // Tells the client which scopes to request at /authorize; without this an
         // Okta AS with no default scopes rejects the call ('scope' must be provided).
         metadata.put("scopes_supported", oktaScopes);
-        return HttpUtils.response(200, jsonHeaders, JsonUtils.toString(metadata));
+        return HttpUtils.responseJson(200, JsonUtils.toString(metadata));
     }
 
     public Map<String, Object> handleOauthAuthorizationServer(Map<String, Object> event) {
@@ -99,7 +96,7 @@ public class OktaMcpDelegate {
         } catch (Exception ignored) {
             // do nothing, body absent or unparseable — client_id alone is a valid RFC 7591 response.
         }
-        return HttpUtils.response(201, JSON_HEADERS, JsonUtils.toString(response));
+        return HttpUtils.responseJson(201, JsonUtils.toString(response));
     }
 
 }

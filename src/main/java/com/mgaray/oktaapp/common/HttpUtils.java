@@ -2,12 +2,11 @@ package com.mgaray.oktaapp.common;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class HttpUtils {
+
+    private static final Map<String, String> JSON_HEADERS = Map.of("content-type", "application/json");
 
     public static Map<String, Object> htmlError(int statusCode, String message) {
         return response(statusCode, Map.of("content-type", "text/html; charset=utf-8"),
@@ -16,6 +15,20 @@ public class HttpUtils {
     }
 
     public static Map<String, Object> response(int statusCode, Map<String, String> headers, String body) {
+        return response(statusCode, headers, body, null);
+    }
+
+    public static Map<String, Object> responseJson(int statusCode, String body) {
+        return response(statusCode, JSON_HEADERS, body, null);
+    }
+
+    public static Map<String, Object> responseJson(int statusCode, Map<String, Object> body) {
+        return response(statusCode, JSON_HEADERS, JsonUtils.toString(body), null);
+    }
+
+    public static Map<String, Object> responseJson(int statusCode, Map<String, String> otherHeaders, String body) {
+        Map<String, String> headers = new HashMap<>(otherHeaders);
+        headers.putAll(JSON_HEADERS);
         return response(statusCode, headers, body, null);
     }
 
