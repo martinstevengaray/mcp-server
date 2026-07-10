@@ -52,7 +52,7 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
         if (DEBUG) {
             String userAgent = JsonUtils.getNestedField(request, "requestContext", "http", "userAgent");
             String sourceIp = JsonUtils.getNestedField(request, "requestContext", "http", "sourceIp");
-            String sourceId = ((userAgent == null) ? "" : userAgent.substring(0, 6) + " ") + sourceIp;
+            String sourceId = (userAgent == null ? "" : userAgent.substring(0, Math.min(userAgent.length(), 6)) + " ") + sourceIp;
             String path = JsonUtils.getNestedField(request, "requestContext", "http", "method") + ":" +
                     JsonUtils.getNestedField(request, "requestContext", "http", "path");
             Logger logger = new Logger(context, sourceId);

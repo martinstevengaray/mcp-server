@@ -125,10 +125,8 @@ resource "aws_lambda_function" "this" {
       JIRA_CLIENT_EMAIL                        = var.jira_client_email
       JIRA_CLOUD_ID                            = var.jira_cloud_id
       JIRA_CLIENT_TOKEN_SSM_PARAMETER_KEY      = aws_ssm_parameter.jira_client_token.name
-      # Empty => DCR shim off; the /register endpoint then returns 404.
-      OKTA_MCP_CLIENT_ID = var.okta_mcp_client_id
-      # Symmetric (HMAC) key for signing round-trip values (MCP OAuth proxy `state`).
-      SYMMETRIC_SIGNING_KEY_SSM_PARAMETER_KEY = aws_ssm_parameter.symmetric_signing_key.name
+      OKTA_MCP_CLIENT_ID                       = var.okta_mcp_client_id
+      SYMMETRIC_SIGNING_KEY_SSM_PARAMETER_KEY  = aws_ssm_parameter.symmetric_signing_key.name
     }
   }
 }
