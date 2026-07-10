@@ -34,8 +34,12 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
         String oktaWebClientSecretSsmParameterKey = System.getenv("OKTA_WEB_CLIENT_SECRET_SSM_PARAMETER_KEY");
         String oktaWebClientSecret = AwsServicesDelegate.fetchSmmParameterValue(oktaWebClientSecretSsmParameterKey);
         String oktaMcpClientId = System.getenv("OKTA_MCP_CLIENT_ID");
+        // Symmetric (HMAC) key for signing values that round-trip through third
+        // parties — currently the MCP OAuth proxy's authorization `state`.
+        String symmetricSigningKey = AwsServicesDelegate.fetchSmmParameterValue(
+                System.getenv("SYMMETRIC_SIGNING_KEY_SSM_PARAMETER_KEY"));
         this.oktaDelegate = new OktaDelegate(oktaIssuer, oktaAudience, oktaWebClientId, oktaWebClientSecret, oktaScopes,
-                oktaMcpClientId);
+                oktaMcpClientId, symmetricSigningKey);
         String jiraEmail = System.getenv("JIRA_CLIENT_EMAIL");
         String jiraCloudId = System.getenv("JIRA_CLOUD_ID");
         String jiraToken = AwsServicesDelegate.fetchSmmParameterValue(System.getenv("JIRA_CLIENT_TOKEN_SSM_PARAMETER_KEY"));
@@ -46,7 +50,9 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
     @Override
     public Map<String, Object> handleRequest(Map<String, Object> request, Context context) {
         if (DEBUG) {
-            String sourceId = JsonUtils.getNestedField(request, "requestContext", "http", "sourceIp");
+            String userAgent = JsonUtils.getNestedField(request, "requestContext", "http", "userAgent");
+            String sourceIp = JsonUtils.getNestedField(request, "requestContext", "http", "sourceIp");
+            String sourceId = ((userAgent == null) ? "" : userAgent.substring(0, 6) + " ") + sourceIp;
             String path = JsonUtils.getNestedField(request, "requestContext", "http", "method") + ":" +
                     JsonUtils.getNestedField(request, "requestContext", "http", "path");
             Logger logger = new Logger(context, sourceId);
@@ -67,6 +73,16 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
             String path = JsonUtils.getNestedField(request, "requestContext", "http", "path");
             if (oktaDelegate.isPublicPath(path)) {
                 return oktaDelegate.handlePublicPath(path, request, logger);
+            }
+            // This server is stateless request/response: it offers no server-initiated
+            // SSE stream (GET /mcp) or session teardown (DELETE /mcp). Per the MCP
+            // Streamable HTTP spec, answer those with 405 so clients stop reopening the
+            // stream every second instead of falling back to plain POST /mcp.
+            if (MCP_PATH.equals(path)) {
+                String httpMethod = JsonUtils.getNestedField(request, "requestContext", "http", "method");
+                if (!"POST".equalsIgnoreCase(httpMethod)) {
+                    return HttpUtils.response(405, Map.of("allow", "POST"), "");
+                }
             }
             try {
                 Jwt jwt = oktaDelegate.readJwt(request);

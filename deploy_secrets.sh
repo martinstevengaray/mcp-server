@@ -40,3 +40,7 @@ if [ -n "${JIRA_CLIENT_TOKEN:-}" ]; then
 else
   echo "JIRA_CLIENT_TOKEN is empty — skipping (Jira MCP tools will fail without it)."
 fi
+
+# Symmetric (HMAC) key for signing round-trip values (MCP OAuth proxy `state`). Any
+# high-entropy random string, e.g.: export SYMMETRIC_SIGNING_KEY="$(openssl rand -base64 32)"
+push_secret "/mcp-server-lambda/symmetric-signing-key" "$SYMMETRIC_SIGNING_KEY"

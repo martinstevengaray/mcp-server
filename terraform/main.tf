@@ -42,6 +42,20 @@ resource "aws_ssm_parameter" "jira_client_token" {
   }
 }
 
+# Symmetric (HMAC) key for signing values that round-trip through third parties —
+# currently the MCP OAuth proxy's authorization `state`. Same out-of-band pattern:
+# terraform owns the parameter's existence, ./deploy_secrets.sh pushes a random
+# value (e.g. `openssl rand -base64 32`).
+resource "aws_ssm_parameter" "symmetric_signing_key" {
+  name  = "/${var.aws_lambda_function_name}/symmetric-signing-key"
+  type  = "SecureString"
+  value = "placeholder - set the real value with aws ssm put-parameter"
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
 resource "aws_iam_role_policy" "read_secrets" {
   name = "${var.aws_lambda_function_name}-read-secrets"
   role = aws_iam_role.lambda.id
@@ -54,7 +68,8 @@ resource "aws_iam_role_policy" "read_secrets" {
         Action = "ssm:GetParameter"
         Resource = [
           aws_ssm_parameter.okta_web_client_secret.arn,
-          aws_ssm_parameter.jira_client_token.arn
+          aws_ssm_parameter.jira_client_token.arn,
+          aws_ssm_parameter.symmetric_signing_key.arn
         ]
       },
       {
@@ -112,6 +127,8 @@ resource "aws_lambda_function" "this" {
       JIRA_CLIENT_TOKEN_SSM_PARAMETER_KEY      = aws_ssm_parameter.jira_client_token.name
       # Empty => DCR shim off; the /register endpoint then returns 404.
       OKTA_MCP_CLIENT_ID = var.okta_mcp_client_id
+      # Symmetric (HMAC) key for signing round-trip values (MCP OAuth proxy `state`).
+      SYMMETRIC_SIGNING_KEY_SSM_PARAMETER_KEY = aws_ssm_parameter.symmetric_signing_key.name
     }
   }
 }
