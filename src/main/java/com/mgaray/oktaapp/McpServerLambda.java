@@ -86,6 +86,9 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
             }
             try {
                 Jwt jwt = oktaDelegate.readJwt(request);
+                if (DEBUG) {
+                    logger.log("Session JWT:", jwt.getClaims());
+                }
                 return MCP_PATH.equals(path) ?
                         mcpHandler.handle(request, jwt) :
                         webHandler.handle(request, jwt, context);
@@ -131,7 +134,7 @@ public class McpServerLambda implements RequestHandler<Map<String, Object>, Map<
             exceptionDetails.put("exception", exception);
             return HttpUtils.responseJson(500, exceptionDetails);
         }
-        return HttpUtils.responseJson(500, "Please try again later");
+        return HttpUtils.htmlError(500, "Please try again later");
     }
 
 }
