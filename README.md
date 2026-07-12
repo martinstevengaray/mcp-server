@@ -24,6 +24,7 @@ export OKTA_WEB_CLIENT_ID="..."             # optional: enables the browser OIDC
 export OKTA_SCOPES="..."                    # optional
 export OKTA_WEB_CLIENT_SECRET="..."         # pushed to SSM by deploy_secrets.sh
 export OKTA_MCP_CLIENT_ID="..."             # optional: Native app id for the DCR shim (see below)
+export SYMMETRIC_SIGNING_KEY="..."          # optional: HMAC key for round-trip signing, used by the OAuth proxy (see C); openssl rand -base64 32
 
 # Jira — email/token come from the claude-skills/jira local config (JIRA_EMAIL / JIRA_TOKEN there)
 export JIRA_CLIENT_EMAIL="you@example.com"  # -> TF_VAR_jira_client_email
@@ -115,3 +116,37 @@ Set it up:
 Note `/register` is public (the OAuth bootstrap must be), but it only echoes a static
 client_id — it holds no secret and makes no Okta calls, so there's nothing to abuse beyond
 handing out an id that's useless without a valid Okta sign-in.
+
+The shim's catch is step B.2: because every client shares one Native app, each client's
+loopback redirect URI must be registered on it by hand. Model C removes that.
+
+### C. OAuth proxy
+
+Instead of registering each client's redirect URI in Okta, the Lambda **fronts Okta as the
+authorization server**. Okta only ever sees *our* fixed redirect (`/oauth/callback`), so any
+client's loopback redirect is honored without pre-registering it — and still with one shared
+Native app, no per-client registration, and no Okta admin credentials.
+
+Discovery advertises our own `/authorize` and `/token`. The flow:
+1. **`/authorize`** — the client arrives with its loopback `redirect_uri` + PKCE
+   `code_challenge`. We redirect to Okta using our `/oauth/callback` and smuggle the client's
+   `redirect_uri`/`state` into a signed `state`.
+2. **`/oauth/callback`** — Okta redirects here; we redirect to the client's loopback URI with
+   Okta's `code` and the client's original `state`.
+3. **`/token`** — the client posts the `code` + its `code_verifier`; we forward to Okta,
+   swapping in our `/oauth/callback` (what the code was bound to), and return Okta's tokens
+   verbatim. PKCE stays end-to-end — the `code_verifier` only passes through us.
+
+Two guards on the redirect-bearing `/oauth/callback` prevent it becoming an open redirector:
+the `state` is **HMAC-signed** (so the smuggled redirect can't be tampered with) and the
+client redirect is **allowlisted to loopback** (`localhost` / `127.0.0.1` / `::1`, per RFC 8252).
+
+Set it up (builds on B's Native app — no extra Okta objects):
+1. Do B.1 and B.3 (create the Native app, add it to the AS access policy, assign your user).
+   **Skip B.2** — you no longer register per-client redirect URIs.
+2. On the Native app, register the **one** redirect URI `https://<functionUrl>/oauth/callback`.
+3. `export SYMMETRIC_SIGNING_KEY="$(openssl rand -base64 32)"` (plus `OKTA_MCP_CLIENT_ID`)
+   in `local/config.sh`, then `./deploy.sh` and `./deploy_secrets.sh` (pushes the key to SSM).
+
+Trade-off vs. real per-client registration: all clients share one Okta app, so you lose
+per-client audit/revocation in Okta — fine for a single team, and it needs zero admin creds.

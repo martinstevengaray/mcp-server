@@ -16,6 +16,11 @@ public class OktaDelegate {
     static final String OKTA_TOKEN_COOKIE = "okta_token";
     static final String REGISTER_PATH = "/register";
     static final String CALLBACK_PATH = "/callback";
+    // MCP OAuth proxy: this Lambda fronts Okta's authorize/token so it can honor
+    // each MCP client's own loopback redirect_uri without registering it in Okta.
+    static final String AUTHORIZE_PATH = "/authorize";
+    static final String TOKEN_PATH = "/token";
+    static final String MCP_OAUTH_CALLBACK_PATH = "/oauth/callback";
     static final String WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX = "/.well-known/oauth-protected-resource";
     private static final String WELL_KNOWN_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX = "/.well-known/oauth-authorization-server";
     private static final String WELL_KNOWN_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX = "/.well-known/openid-configuration";
@@ -24,18 +29,21 @@ public class OktaDelegate {
 
     private final AuthenticationHandlerMcp authenticationHandlerMcp;
     private final AuthenticationHandlerWeb authenticationHandlerWeb;
+    private final McpOAuthProxy mcpOAuthProxy;
 
     public OktaDelegate(String oktaIssuer,
                         String oktaAudience,
                         String oktaWebClientId,
                         String oktaWebClientSecret,
                         String oktaScopes,
-                        String oktaMcpClientId) {
+                        String oktaMcpClientId,
+                        String symmetricSigningKey) {
         this.verifier = JwtVerifiers.accessTokenVerifierBuilder()
                 .setIssuer(oktaIssuer)
                 .setAudience(oktaAudience)
                 .setConnectionTimeout(Duration.ofSeconds(5))
                 .build();
+        this.mcpOAuthProxy = new McpOAuthProxy(oktaIssuer, symmetricSigningKey);
         this.authenticationHandlerMcp = new AuthenticationHandlerMcp(oktaIssuer, oktaScopes, oktaMcpClientId);
         this.authenticationHandlerWeb = new AuthenticationHandlerWeb(oktaIssuer, oktaWebClientId, oktaWebClientSecret, oktaScopes, verifier);
     }
@@ -53,7 +61,10 @@ public class OktaDelegate {
                 path.startsWith(WELL_KNOWN_OAUTH_AUTHORIZATION_SERVER_PATH_PREFIX) ||
                 path.startsWith(WELL_KNOWN_OAUTH_OPENID_CONFIGURATION_PATH_PREFIX) ||
                 REGISTER_PATH.equals(path) ||
-                CALLBACK_PATH.equals(path));
+                CALLBACK_PATH.equals(path) ||
+                AUTHORIZE_PATH.equals(path) ||
+                TOKEN_PATH.equals(path) ||
+                MCP_OAUTH_CALLBACK_PATH.equals(path));
     }
 
     public Map<String, Object> handlePublicPath(String path, Map<String, Object> event, Logger logger) {
@@ -69,6 +80,15 @@ public class OktaDelegate {
         }
         if (CALLBACK_PATH.equals(path)) {
             return authenticationHandlerWeb.handleCallback(event, logger);
+        }
+        if (AUTHORIZE_PATH.equals(path)) {
+            return mcpOAuthProxy.handleAuthorize(event);
+        }
+        if (TOKEN_PATH.equals(path)) {
+            return mcpOAuthProxy.handleToken(event, logger);
+        }
+        if (MCP_OAUTH_CALLBACK_PATH.equals(path)) {
+            return mcpOAuthProxy.handleCallback(event, logger);
         }
         throw new IllegalStateException("Unsupported path: " + path);
     }

@@ -8,6 +8,8 @@ import java.util.Map;
 
 import static com.mgaray.oktaapp.auth.OktaDelegate.WELL_KNOWN_OAUTH_PROTECTED_RESOURCE_PATH_PREFIX;
 import static com.mgaray.oktaapp.auth.OktaDelegate.REGISTER_PATH;
+import static com.mgaray.oktaapp.auth.OktaDelegate.AUTHORIZE_PATH;
+import static com.mgaray.oktaapp.auth.OktaDelegate.TOKEN_PATH;
 
 class AuthenticationHandlerMcp {
 
@@ -57,8 +59,10 @@ class AuthenticationHandlerMcp {
         Map<String, String> jsonHeaders = Map.of("content-type", "application/json");
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("issuer", "https://" + domainName); // alternatively  oktaIssuer
-        metadata.put("authorization_endpoint", oktaIssuer + "/v1/authorize");
-        metadata.put("token_endpoint", oktaIssuer + "/v1/token");
+        // Clients hit our own /authorize and /token (the OAuth proxy) so we can swap
+        // in our redirect_uri and honor each client's loopback callback.
+        metadata.put("authorization_endpoint", "https://" + domainName + AUTHORIZE_PATH);
+        metadata.put("token_endpoint", "https://" + domainName + TOKEN_PATH);
         metadata.put("jwks_uri", oktaIssuer + "/v1/keys");
         metadata.put("registration_endpoint", "https://" + domainName + REGISTER_PATH);
         metadata.put("response_types_supported", List.of("code"));
