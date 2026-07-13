@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 VERSION=$(./gradlew -q printVersion)
 
 # Raw org-specific values (OKTA_URL_PREFIX, OKTA_WEB_CLIENT_ID/SECRET, AWS_ACCOUNT_ID, ...).
-source local/config.sh
+source local/deployment-config.sh
 
 # Terraform reads TF_VAR_<name> env vars as input variables (see terraform/variables.tf).
 # The browser OIDC flow needs a "Web Application" Okta app (OKTA_WEB_CLIENT_ID); the
@@ -27,7 +27,7 @@ export TF_VAR_jira_cloud_id=$JIRA_CLOUDID
 
 # Skipped once initialized — if the backend or providers change, delete terraform/.terraform to re-init.
 if [ ! -d terraform/.terraform ]; then
-  terraform -chdir=terraform init -backend-config="bucket=tfstate-${AWS_ACCOUNT_ID}" -input=false
+  terraform -chdir=terraform init -backend-config="bucket=${TERRAFORM_TFSTATE_S3_BUCKET}" -input=false
 fi
 
 terraform -chdir=terraform apply -var "app_version=$VERSION" "$@"
