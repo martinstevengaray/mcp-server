@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
@@ -54,6 +55,11 @@ class AuthenticationHandlerWeb {
         byte[] randomTokenBytes = new byte[24];
         secureRandom.nextBytes(randomTokenBytes);
         String state = HttpUtils.base64Url(randomTokenBytes);
+        // PKCE: challenge goes to Okta now, verifier rides the state cookie until /callback.
+        byte[] verifierBytes = new byte[32];
+        secureRandom.nextBytes(verifierBytes);
+        String codeVerifier = HttpUtils.base64Url(verifierBytes);
+        String codeChallenge = HttpUtils.base64Url(sha256(codeVerifier));
         String rawQuery = event.get("rawQueryString") instanceof String q && !q.isEmpty() ? "?" + q : "";
         String original = HttpUtils.base64Url((path + rawQuery).getBytes(StandardCharsets.UTF_8));
         String domainName = JsonUtils.getNestedField(event,"requestContext", "domainName");
@@ -63,9 +69,11 @@ class AuthenticationHandlerWeb {
                 + "&response_type=code"
                 + "&scope=" + HttpUtils.urlEncode(oktaScopes)
                 + "&redirect_uri=" + HttpUtils.urlEncode(redirectUri)
-                + "&state=" + state;
+                + "&state=" + state
+                + "&code_challenge=" + codeChallenge
+                + "&code_challenge_method=S256";
         return HttpUtils.response(302, Map.of("location", authorizeUrl), "",
-                List.of(OAUTH_STATE_COOKIE + "=" + state + "." + original
+                List.of(OAUTH_STATE_COOKIE + "=" + state + "." + codeVerifier + "." + original
                         + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=300"));
     }
 
@@ -83,6 +91,12 @@ class AuthenticationHandlerWeb {
         if (code == null || state == null || oathStateCookie == null || !oathStateCookie.startsWith(state + ".")) {
             return HttpUtils.htmlError(400, "Login state mismatch, retry.");
         }
+        // Cookie layout: state.codeVerifier.original (all base64url, so dot-safe).
+        String[] cookieParts = oathStateCookie.split("\\.", 3);
+        if (cookieParts.length != 3) {
+            return HttpUtils.htmlError(400, "Login state mismatch, retry.");
+        }
+        final String codeVerifier = cookieParts[1];
         //verify "code" in queryStringParameters to retrieve an accessToken for client
         final String domainName = JsonUtils.getNestedField(event,"requestContext", "domainName");
         final String redirectUri = "https://" + domainName + CALLBACK_PATH;
@@ -95,7 +109,8 @@ class AuthenticationHandlerWeb {
                     .POST(HttpRequest.BodyPublishers.ofString(
                             "grant_type=authorization_code"
                                     + "&code=" + HttpUtils.urlEncode(code)
-                                    + "&redirect_uri=" + HttpUtils.urlEncode(redirectUri)))
+                                    + "&redirect_uri=" + HttpUtils.urlEncode(redirectUri)
+                                    + "&code_verifier=" + HttpUtils.urlEncode(codeVerifier)))
                     .build();
             response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
@@ -114,12 +129,20 @@ class AuthenticationHandlerWeb {
             return HttpUtils.htmlError(500, "Okta issued a token this service could not verify.");
         }
         String originallyRequestedUrl = new String(
-                Base64.getUrlDecoder().decode(oathStateCookie.substring(state.length() + 1)),
+                Base64.getUrlDecoder().decode(cookieParts[2]),
                 StandardCharsets.UTF_8);
         Integer maxAge =  JsonUtils.getNestedField(response.body(), "expires_in");
         return HttpUtils.response(302, Map.of("location", originallyRequestedUrl), "", List.of(
                 OKTA_TOKEN_COOKIE + "=" + accessToken + "; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=" + maxAge,
                 OAUTH_STATE_COOKIE + "=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0")); //clear out oath cookie
+    }
+
+    private static byte[] sha256(String value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
 }
