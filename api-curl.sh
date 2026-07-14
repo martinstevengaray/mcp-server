@@ -8,7 +8,7 @@
 #OKTA_API_CLIENT_SECRET="client-secret"
 #AWS_LAMBDA_URL="lambda url"
 #OKTA_SCOPES="scope"
-source local/config.sh
+source local/api-curl-config.sh
 
 TOKEN=$(curl -s "https://$OKTA_URL_PREFIX.okta.com/oauth2/default/v1/token" \
   -u "$OKTA_API_CLIENT_ID:$OKTA_API_CLIENT_SECRET" \

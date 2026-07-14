@@ -1,4 +1,4 @@
-source local/config.sh
+source local/api-curl-config.sh
 
 # Get an Okta access token via client_credentials.
 TOKEN=$(curl -s "https://$OKTA_URL_PREFIX.okta.com/oauth2/default/v1/token" \

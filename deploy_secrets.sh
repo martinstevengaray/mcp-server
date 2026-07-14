@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Push secrets from local/config.sh to SSM Parameter Store: the Okta web app
+# Push secrets from local/deployment-config.sh to SSM Parameter Store: the Okta web app
 # client secret and the Jira API token. Run after the first ./deploy.sh
 # (terraform creates the parameter shells) and again whenever a secret rotates.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-source local/config.sh
+source local/deployment-config.sh
 
 # Push a secret value into an existing SSM SecureString parameter, only writing
 # when the value changed so parameter versions stay meaningful. Terraform owns
