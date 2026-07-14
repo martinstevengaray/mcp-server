@@ -6,13 +6,11 @@ variable "app_version" {
 variable "aws_region" {
   description = "AWS region to deploy into"
   type        = string
-  default     = "us-west-2"
 }
 
 variable "aws_lambda_function_name" {
   description = "Name of the Lambda function"
   type        = string
-  default     = "mcp-server-lambda"
 }
 
 variable "okta_issuer" {
