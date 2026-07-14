@@ -10,7 +10,7 @@ push_secret() {
   local param_name="$1" value="$2"
   local current
   if ! current=$(aws ssm get-parameter --name "$param_name" --with-decryption \
-    --query Parameter.Value --output text 2>/dev/null); then
+    --region "$DEPLOYMENT_REGION" --query Parameter.Value --output text 2>/dev/null); then
     echo "Parameter $param_name not found — run ./deploy.sh first (terraform creates it)." >&2
     exit 1
   fi
@@ -19,23 +19,20 @@ push_secret() {
     return
   fi
   aws ssm put-parameter --name "$param_name" --type SecureString --overwrite \
-    --value "$value" > /dev/null
+    --region "$DEPLOYMENT_REGION" --value "$value" > /dev/null
   echo "$param_name updated."
 }
 
-# Must match terraform: /<aws_lambda_function_name>/<name>
 if [ -n "${OKTA_WEB_CLIENT_SECRET:-}" ]; then
-  push_secret "/mcp-server-lambda/okta-web-client-secret" "$OKTA_WEB_CLIENT_SECRET"
+  push_secret "/${LAMBDA_FUNCTION_NAME}/okta-web-client-secret" "$OKTA_WEB_CLIENT_SECRET"
 else
   echo "OKTA_WEB_CLIENT_SECRET is empty — skipping (browser flow disabled)."
 fi
 
 if [ -n "${JIRA_CLIENT_TOKEN:-}" ]; then
-  push_secret "/mcp-server-lambda/jira-client-token" "$JIRA_CLIENT_TOKEN"
+  push_secret "/${LAMBDA_FUNCTION_NAME}/jira-client-token" "$JIRA_CLIENT_TOKEN"
 else
   echo "JIRA_CLIENT_TOKEN is empty — skipping (Jira MCP tools will fail without it)."
 fi
 
-# Symmetric (HMAC) key for signing round-trip values (MCP OAuth proxy `state`). Any
-# high-entropy random string, e.g.: export SYMMETRIC_SIGNING_KEY="$(openssl rand -base64 32)"
-push_secret "/mcp-server-lambda/symmetric-signing-key" "$SYMMETRIC_SIGNING_KEY"
+push_secret "/${LAMBDA_FUNCTION_NAME}/symmetric-signing-key" "$SYMMETRIC_SIGNING_KEY"
