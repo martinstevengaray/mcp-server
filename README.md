@@ -32,9 +32,20 @@ export JIRA_CLOUDID="<your jira cloudId>" # curl -s "https://<jir-site-url>/_edg
 ```
 4) Deploy lambda and associated infrastructure with [deploy.sh](deploy.sh) -auto-approve
 5) Deploy secrets with [deploy-secrets.sh](deploy-secrets.sh)
-6) In Okta admin dashboard add `<function_url>/oauth/callback` as the callback uri for the native app created in step 2. (function_url can be found in the output of deploy.sh)
+6) In Okta admin dashboard use `<function_url>/oauth/callback` as a sign-in redirect uri for the native app created in step 2. (function_url can be found in the output of deploy.sh)
 7) Register MCP server with agent. `claude mcp add --transport http mcp-server-lambda <function_url>/mcp`
 8) Ask agent to connect to mcp server `/mcp`, authenticate, and test
+
+### optional setup for the browser client
+In addition to the MCP endpoint, the lambda can serve its web pages directly to a browser, authenticating the user via an Okta "Web Application" app.
+1) In Okta admin dashboard create new app using: OIDC Web Application with PKCE. Use `<function_url>/callback` as a sign-in redirect uri and assign app to user.
+2) Add to ./local/deployment-config.sh:
+```bash
+export OKTA_WEB_CLIENT_ID="<your okta web client id>"
+export OKTA_WEB_CLIENT_SECRET="<your okta web client secret>"
+```
+3) After redeploying, open browser at `<function-url>`
+
 
 ### optional setup for api-curl.sh and api-rpc-curl.sh
 1) In Okta admin dashboard create new machine to machine application with id+secret.
