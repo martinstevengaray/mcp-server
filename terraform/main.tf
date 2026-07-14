@@ -31,7 +31,7 @@ resource "aws_ssm_parameter" "okta_web_client_secret" {
 }
 
 # Same out-of-band pattern as the Okta secret: terraform owns the parameter's
-# existence, the real Jira API token is pushed by ./deploy_secrets.sh.
+# existence, the real Jira API token is pushed by ./deploy-secrets.sh.
 resource "aws_ssm_parameter" "jira_client_token" {
   name  = "/${var.aws_lambda_function_name}/jira-client-token"
   type  = "SecureString"
@@ -44,7 +44,7 @@ resource "aws_ssm_parameter" "jira_client_token" {
 
 # Symmetric (HMAC) key for signing values that round-trip through third parties —
 # currently the MCP OAuth proxy's authorization `state`. Same out-of-band pattern:
-# terraform owns the parameter's existence, ./deploy_secrets.sh pushes a random
+# terraform owns the parameter's existence, ./deploy-secrets.sh pushes a random
 # value (e.g. `openssl rand -base64 32`).
 resource "aws_ssm_parameter" "symmetric_signing_key" {
   name  = "/${var.aws_lambda_function_name}/symmetric-signing-key"
